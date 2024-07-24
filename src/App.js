@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
+import axios from 'axios';
 import 'leaflet-routing-machine';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
@@ -18,9 +19,25 @@ function App() {
   const routeCoordinatesRef = useRef([]);
   const currentIndexRef = useRef(0);
 
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
+
   useEffect(() => {
-    initializeMap();
+    // Fetch route data from the backend
+    axios.get('https://vehicle-movement-map-be.onrender.com/api/vehicle-route')
+      .then(response => {
+        const coordinates = response.data.map(point => L.latLng(point.latitude, point.longitude));
+        setRouteCoordinates(coordinates);
+      })
+      .catch(error => {
+        console.error('Error fetching route data:', error);
+      });
   }, []);
+
+  useEffect(() => {
+    if (routeCoordinates.length > 0) {
+      initializeMap();
+    }
+  }, [routeCoordinates]);
 
   const initializeMap = () => {
     const map = L.map('map').setView([18.5223, 73.8939], 18);
@@ -30,14 +47,8 @@ function App() {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
-    const pune = [18.516726, 73.856255];
-    const lonavala = [18.748060, 73.407219];
-
     L.Routing.control({
-      waypoints: [
-        L.latLng(pune),
-        L.latLng(lonavala)
-      ],
+      waypoints: routeCoordinates,
       router: L.Routing.osrmv1({
         language: 'en',
         profile: 'driving'
